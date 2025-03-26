@@ -1,0 +1,30 @@
+services:
+  backend:
+    build: .
+    ports:
+      - '8000:8000'
+    volumes:
+      - .:/app
+    environment:
+      - DB_NAME=tally_db
+      - DB_USER=tally_user
+      - DB_PASSWORD=tally_password
+      - DB_HOST=db
+      - DB_PORT=5432
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: tally_db
+      POSTGRES_USER: tally_user
+      POSTGRES_PASSWORD: tally_password
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
