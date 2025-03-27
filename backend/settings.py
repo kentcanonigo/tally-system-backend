@@ -29,8 +29,12 @@ SECRET_KEY = 'django-insecure-5nl&i&ine0g@2wzhkk4xva46g8@@ytqme^&89(30@%199j$yqu
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER", "False") == "True"
 
+ALLOWED_HOSTS = ['192.168.1.100', 'localhost', '127.0.0.1', '10.0.2.2', '192.168.1.2'] # When running docker, add your host pc's ipv4 address here.
+
+if RUNNING_IN_DOCKER:
+    ALLOWED_HOSTS.append("backend")  # The container name in Docker
 
 # Application definition
 
@@ -78,13 +82,15 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# Determine if running inside Docker
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv("DB_NAME", "tally_db"), # TODO: please adjust this if needed!
         'USER': os.getenv("DB_USER", "tally_user"),
         'PASSWORD': os.getenv("DB_PASSWORD", "tally_password"),
-        'HOST': os.getenv("DB_HOST", "127.0.0.1"),  # 'db' is default (NEEDS DOCKER!!!)
+        'HOST': "db" if RUNNING_IN_DOCKER else "127.0.0.1",  # Use 'db' in Docker, '127.0.0.1' locally
         'PORT': os.getenv("DB_PORT", "5432"),
     }
 }

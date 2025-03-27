@@ -6,6 +6,7 @@ services:
     volumes:
       - .:/app
     environment:
+      - RUNNING_IN_DOCKER=True # Tells Django it's running inside Docker
       - DB_NAME=tally_db
       - DB_USER=tally_user
       - DB_PASSWORD=tally_password
