@@ -11,10 +11,13 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import environ
 import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+env = environ.Env()
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 
 # Quick-start development settings - unsuitable for production
@@ -81,7 +84,7 @@ DATABASES = {
         'NAME': os.getenv("DB_NAME", "tally_db"), # TODO: please adjust this if needed!
         'USER': os.getenv("DB_USER", "tally_user"),
         'PASSWORD': os.getenv("DB_PASSWORD", "tally_password"),
-        'HOST': os.getenv("DB_HOST", "db"),  # Use 'db' when running inside Docker
+        'HOST': os.getenv("DB_HOST", "127.0.0.1"),  # 'db' is default (NEEDS DOCKER!!!)
         'PORT': os.getenv("DB_PORT", "5432"),
     }
 }
