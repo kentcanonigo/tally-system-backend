@@ -63,6 +63,7 @@ docker-compose down && docker-compose up -d
 ```
 
 ### **Option 2: Run Locally Without Docker**
+TODO: add steps for installing postgres (or refer to notion)
 Stop Docker (`docker-compose down`) and run:
 ```sh
 source venv/bin/activate  # Activate virtual environment
