@@ -23,7 +23,7 @@ Create a `.env` file in the project root:
 DB_NAME=tally_db
 DB_USER=tally_user
 DB_PASSWORD=tally_password
-DB_HOST=db  # Use 'localhost' if running locally without Docker
+DB_HOST=127.0.0.1
 DB_PORT=5432
 DEBUG=True  # Set False in production
 ```
