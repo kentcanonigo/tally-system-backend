@@ -21,5 +21,4 @@ from .views import test_api
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('test/', test_api),
-    path('api/', include('backend.api.urls')), 
 ]
