@@ -1,5 +1,5 @@
 from .plants_serializer import PlantSerializer
 from .weight_classifications_serializer import WeightClassificationSerializer
-from .customer_serializer import CustomerSerializer
+from .customers_serializer import CustomerSerializer
 from .tally_sessions_serializer import TallySessionSerializer
 from .allocation_details_serializer import AllocationDetailSerializer
