@@ -2,7 +2,7 @@ from django.db import models
 from .tally_sessions import TallySession
 from .weight_classifications import WeightClassification
 
-class AllocationDetail(models.Model):
+class AllocationDetails(models.Model):
     id = models.AutoField(primary_key=True)
     tally_session = models.ForeignKey(TallySession, on_delete=models.CASCADE)
     weight_class = models.ForeignKey(WeightClassification, on_delete=models.CASCADE)
