@@ -1,5 +1,3 @@
-Here's your updated `README.md` with clear steps on how to access Swagger and ReDoc documentation for the frontend team, assuming setup is already done:
-
 ---
 
 ````md
