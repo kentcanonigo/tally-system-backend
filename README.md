@@ -1,24 +1,39 @@
+Here's your updated `README.md` with clear steps on how to access Swagger and ReDoc documentation for the frontend team, assuming setup is already done:
+
+---
+
+````md
 # Tally System Backend
 
-This repository contains the backend for the Tally System, built using Django and PostgreSQL. It provides APIs for managing data and integrates with the frontend.
+This repository contains the backend for the Tally System, built using Django and PostgreSQL. It provides RESTful APIs for managing data and integrates with the frontend.
+
+---
 
 ## 📌 Prerequisites
+
 Ensure you have the following installed:
+
 - Python 3.10+
 - PostgreSQL
 - Docker & Docker Compose
 - Git
 
+---
+
 ## 🚀 Getting Started
 
-### 1️⃣ **Clone the Repository**
+### 1️⃣ Clone the Repository
+
 ```sh
 git clone https://github.com/kentcanonigo/tally-system-backend
 cd tally-system-backend
 ```
+````
 
-### 2️⃣ **Setup Environment Variables**
+### 2️⃣ Environment Setup
+
 Create a `.env` file in the project root:
+
 ```ini
 DB_NAME=tally_db
 DB_USER=tally_user
@@ -28,17 +43,23 @@ DB_PORT=5432
 DEBUG=True
 ```
 
-### 3️⃣ **Run with Docker (Recommended)**
+---
+
+### 3️⃣ Running the Project
+
+#### ✅ Using Docker (Recommended)
+
 ```sh
 docker-compose up --build -d
 ```
-This starts the Django backend and PostgreSQL database in separate containers.
 
-### 4️⃣ **Run Locally (Without Docker)**
-TODO: add steps for installing postgres (or refer to notion)
+This spins up both the Django backend and PostgreSQL in containers.
+
+#### ⚙️ Local Run (Without Docker)
+
 ```sh
 python -m venv venv
-source venv/bin/activate  # On Windows use: venv\Scripts\activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
@@ -46,48 +67,85 @@ python manage.py runserver
 
 ---
 
-## 🧪 **Testing the API with Postman**
-1. Open Postman.
-2. Set the **Base URL**: `http://localhost:8000/api/`
-3. Example Request: **Create a Customer**
-   - Endpoint: `POST /customers/`
-   - Headers: `{ "Content-Type": "application/json" }`
-   - Body:
-     ```json
-     {
-       "name": "John Doe",
-       "email": "john@example.com"
-     }
-     ```
-4. Click **Send** and check the response.
+## 📘 API Documentation (Swagger & ReDoc)
+
+Once the server is running (either via Docker or locally), the API documentation will be available automatically.
+
+> 🧠 These docs are generated live based on the current models, serializers, and views.
+
+### 🔗 Swagger UI (Interactive)
+
+- URL: [http://localhost:8000/docs/swagger/](http://localhost:8000/docs/swagger/)
+- Allows you to **test endpoints**, view request/response formats, and check status codes.
+
+### 📖 ReDoc (Static, Clean Look)
+
+- URL: [http://localhost:8000/docs/redoc/](http://localhost:8000/docs/redoc/)
+- Ideal for referencing endpoint structures without interaction.
 
 ---
 
-## 🔄 **Useful Commands**
+## 💡 For Frontend Developers
+
+You don’t need to ask for backend routes manually — just open `/docs/swagger/` to see:
+
+- All available endpoints (e.g., `/customers/`, `/tally-sessions/`, etc.)
+- Expected payloads for POST/PUT
+- Real-time request testing (no need for Postman)
+
+This allows you to build or test the frontend quickly using **actual live data**.
+
+---
+
+## 🧪 Testing the API
+
+You can still use Postman if preferred:
+
+- **Base URL**: `http://localhost:8000/`
+- Example Endpoint:
+  ```http
+  POST /customers/
+  ```
+  Body (JSON):
+  ```json
+  {
+    "name": "John Doe",
+    "email": "john@example.com"
+  }
+  ```
+
+---
+
+## 🔄 Useful Commands
+
 ```sh
-# Create migrations
+# Apply DB changes
 python manage.py makemigrations
 python manage.py migrate
 
-# Create superuser (for Django Admin)
+# Create admin user
 python manage.py createsuperuser
 
-# Run tests
+# Run backend tests
 pytest
 ```
 
 ---
 
-## 📦 **Deployment**
-For production, ensure:
-- `DEBUG=False` in `.env`
-- Use a **production-ready WSGI server** (e.g., Gunicorn)
-- Enable **HTTPS** and configure a **reverse proxy** (e.g., Nginx)
+## 📦 Deployment Notes
+
+When preparing for production:
+
+- Set `DEBUG=False` in your `.env`
+- Use Gunicorn or another WSGI server
+- Serve via Nginx with HTTPS
+- Protect the `/docs/` endpoints if needed (for security)
 
 ---
 
-## 📜 **Contributing**
-1. Fork the repository.
-2. Create a feature branch: `git checkout -b feature-name`
-3. Commit changes and push: `git push origin feature-name`
-4. Open a Pull Request.
+## 📜 Contributing
+
+1. Fork this repository
+2. Create your feature branch: `git checkout -b feature-name`
+3. Commit and push your code
+4. Open a Pull Request

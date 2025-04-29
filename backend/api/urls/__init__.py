@@ -8,4 +8,5 @@ urlpatterns = [
     path("tally-sessions/", include("backend.api.urls.tally_sessions_urls")),
     path("allocations/", include("backend.api.urls.allocation_details_urls")),
     path("weight-classifications/", include("backend.api.urls.weight_classifications_urls")),
+    path("docs/", include("backend.api.urls.swagger_urls")),
 ]

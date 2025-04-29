@@ -2,7 +2,7 @@ services:
   backend:
     build: .
     ports:
-      - '8000:8000'
+      - "8000:8000"
     volumes:
       - .:/app
     environment:
@@ -23,7 +23,7 @@ services:
       POSTGRES_USER: tally_user
       POSTGRES_PASSWORD: tally_password
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
