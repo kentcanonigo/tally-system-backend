@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
-import environ
+import environ # type: ignore
 import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',  # API framework
+    'backend.api',  # API app
+    'drf_yasg',  # Swagger documentation
 ]
 
 MIDDLEWARE = [
