@@ -69,12 +69,12 @@ Once the server is running (either via Docker or locally), the API documentation
 
 ### 🔗 Swagger UI (Interactive)
 
-- URL: [http://localhost:8000/docs/swagger/](http://localhost:8000/api/docs/swagger/)
+- URL: [http://localhost:8000/api/docs/swagger/](http://localhost:8000/api/docs/swagger/)
 - Allows you to **test endpoints**, view request/response formats, and check status codes.
 
 ### 📖 ReDoc (Static, Clean Look)
 
-- URL: [http://localhost:8000/docs/redoc/](http://localhost:8000/api/docs/redoc/)
+- URL: [http://localhost:8000/api/docs/redoc/](http://localhost:8000/api/docs/redoc/)
 - Ideal for referencing endpoint structures without interaction.
 
 ---
