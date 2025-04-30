@@ -1,8 +1,3 @@
-Here's your updated `README.md` with clear steps on how to access Swagger and ReDoc documentation for the frontend team, assuming setup is already done:
-
----
-
-````md
 # Tally System Backend
 
 This repository contains the backend for the Tally System, built using Django and PostgreSQL. It provides RESTful APIs for managing data and integrates with the frontend.
@@ -28,7 +23,6 @@ Ensure you have the following installed:
 git clone https://github.com/kentcanonigo/tally-system-backend
 cd tally-system-backend
 ```
-````
 
 ### 2️⃣ Environment Setup
 
