@@ -180,17 +180,26 @@ class TallyTab:
     def __init__(self, parent):
         self.frame = ttk.Frame(parent)
         self.history = []
+        self.customers = fetch_list('customers/')
         self.plants = fetch_list('plants/')
         self.sessions = fetch_list('tally-sessions/')
         self.weight_classes = fetch_list('weight-classifications/')
         self.allocations = fetch_list('allocations/')
+        # Customer selection
+        customer_row = tk.Frame(self.frame)
+        customer_row.pack(fill='x', padx=10, pady=2)
+        tk.Label(customer_row, text='Customer', width=18, anchor='w').pack(side=tk.LEFT)
+        self.customer_var = tk.StringVar()
+        self.customer_combo = ttk.Combobox(customer_row, textvariable=self.customer_var, state='readonly')
+        self.customer_combo['values'] = [f"{c['id']}: {c['name']}" for c in self.customers]
+        self.customer_combo.pack(side=tk.LEFT, fill='x', expand=True)
+        self.customer_combo.bind('<<ComboboxSelected>>', self.on_customer_select)
         # Plant selection
         plant_row = tk.Frame(self.frame)
         plant_row.pack(fill='x', padx=10, pady=2)
         tk.Label(plant_row, text='Plant', width=18, anchor='w').pack(side=tk.LEFT)
         self.plant_var = tk.StringVar()
         self.plant_combo = ttk.Combobox(plant_row, textvariable=self.plant_var, state='readonly')
-        self.plant_combo['values'] = [f"{p['id']}: {p['name']}" for p in self.plants]
         self.plant_combo.pack(side=tk.LEFT, fill='x', expand=True)
         self.plant_combo.bind('<<ComboboxSelected>>', self.on_plant_select)
         # Session selection
@@ -233,6 +242,7 @@ class TallyTab:
         self.history_list = tk.Listbox(self.frame, width=80)
         self.history_list.pack(padx=10, pady=5)
         # Internal state
+        self.current_customer_id = None
         self.current_plant_id = None
         self.current_session_id = None
         self.filtered_allocs = []
@@ -245,14 +255,33 @@ class TallyTab:
         else:
             self.weight_var.set(self.weight_var.get() + char)
 
+    def on_customer_select(self, event=None):
+        val = self.customer_var.get()
+        if not val:
+            return
+        customer_id = int(val.split(':')[0])
+        self.current_customer_id = customer_id
+        # Filter plants that have sessions for this customer
+        customer_sessions = [s for s in self.sessions if s['customer'] == customer_id]
+        plant_ids = sorted(set(s['plant'] for s in customer_sessions))
+        filtered_plants = [p for p in self.plants if p['id'] in plant_ids]
+        self.plant_combo['values'] = [f"{p['id']}: {p['name']}" for p in filtered_plants]
+        self.plant_var.set('')
+        self.session_combo['values'] = []
+        self.session_var.set('')
+        self.alloc_table.delete(0, tk.END)
+        self.history_list.delete(0, tk.END)
+        self.current_plant_id = None
+        self.current_session_id = None
+
     def on_plant_select(self, event=None):
         val = self.plant_var.get()
-        if not val:
+        if not val or not self.current_customer_id:
             return
         plant_id = int(val.split(':')[0])
         self.current_plant_id = plant_id
-        # Filter sessions for this plant
-        filtered_sessions = [s for s in self.sessions if s['plant'] == plant_id]
+        # Filter sessions for this customer and plant
+        filtered_sessions = [s for s in self.sessions if s['plant'] == plant_id and s['customer'] == self.current_customer_id]
         self.session_combo['values'] = [f"{s['id']}: {s['status']} ({s['date']})" for s in filtered_sessions]
         self.session_var.set('')
         self.alloc_table.delete(0, tk.END)
@@ -286,8 +315,8 @@ class TallyTab:
             self.alloc_table.insert(tk.END, f"{wc['classification']} ({wc['min_weight']}-{wc['max_weight']}kg) | Required: {alloc['required_bags']} | Allocated: {alloc['allocated_bags'] if alloc['allocated_bags'] is not None else 0}")
 
     def add_bag(self):
-        if not self.current_plant_id or not self.current_session_id:
-            messagebox.showwarning('Selection Error', 'Please select a plant and session.')
+        if not self.current_customer_id or not self.current_plant_id or not self.current_session_id:
+            messagebox.showwarning('Selection Error', 'Please select a customer, plant, and session.')
             return
         try:
             weight = float(self.weight_var.get())
