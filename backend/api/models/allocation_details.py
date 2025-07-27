@@ -7,7 +7,7 @@ class AllocationDetails(models.Model):
     tally_session = models.ForeignKey(TallySession, on_delete=models.CASCADE)
     weight_class = models.ForeignKey(WeightClassification, on_delete=models.CASCADE)
     required_bags = models.FloatField()
-    allocated_bags = models.FloatField()
+    allocated_bags = models.FloatField(null=True, blank=True)  # Allow null/blank
 
     def __str__(self):
         return f"Session {self.tally_session.id}: {self.weight_class.classification} ({self.allocated_bags}/{self.required_bags})"

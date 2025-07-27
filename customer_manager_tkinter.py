@@ -111,6 +111,9 @@ class ModelTab:
                 payload[field] = val
             else:
                 if val == '':
+                    # For allocations, allow allocated_bags to be omitted if empty
+                    if self.model == 'allocations' and field == 'allocated_bags':
+                        continue
                     if self.model == 'weight-classifications' and field in ['min_weight', 'max_weight']:
                         messagebox.showwarning('Input Error', f'{field.replace("_", " ").capitalize()} is required.')
                         return None
@@ -125,7 +128,20 @@ class ModelTab:
         payload = self.get_payload()
         if payload is None:
             return
-        print("DEBUG PAYLOAD:", payload)  # Add this line
+        # Custom validation for weight-classifications: check for overlapping min/max weight
+        if self.model == 'weight-classifications':
+            plant_id = payload.get('plant')
+            min_w = payload.get('min_weight')
+            max_w = payload.get('max_weight')
+            if plant_id is not None and min_w is not None and max_w is not None:
+                # Fetch all weight classifications for this plant
+                all_wcs = fetch_list('weight-classifications/')
+                for wc in all_wcs:
+                    if wc['plant'] == plant_id:
+                        # Check for overlap
+                        if not (max_w < wc['min_weight'] or min_w > wc['max_weight']):
+                            messagebox.showerror('Conflict', f"Weight range {min_w}-{max_w}kg overlaps with existing classification {wc['classification']} ({wc['min_weight']}-{wc['max_weight']}kg). Please adjust the range.")
+                            return
         try:
             resp = requests.post(self.get_api_url(), json=payload)
             resp.raise_for_status()
@@ -160,6 +176,162 @@ class ModelTab:
         except Exception as e:
             messagebox.showerror('Error', f'Failed to delete: {e}')
 
+class TallyTab:
+    def __init__(self, parent):
+        self.frame = ttk.Frame(parent)
+        self.history = []
+        self.plants = fetch_list('plants/')
+        self.sessions = fetch_list('tally-sessions/')
+        self.weight_classes = fetch_list('weight-classifications/')
+        self.allocations = fetch_list('allocations/')
+        # Plant selection
+        plant_row = tk.Frame(self.frame)
+        plant_row.pack(fill='x', padx=10, pady=2)
+        tk.Label(plant_row, text='Plant', width=18, anchor='w').pack(side=tk.LEFT)
+        self.plant_var = tk.StringVar()
+        self.plant_combo = ttk.Combobox(plant_row, textvariable=self.plant_var, state='readonly')
+        self.plant_combo['values'] = [f"{p['id']}: {p['name']}" for p in self.plants]
+        self.plant_combo.pack(side=tk.LEFT, fill='x', expand=True)
+        self.plant_combo.bind('<<ComboboxSelected>>', self.on_plant_select)
+        # Session selection
+        session_row = tk.Frame(self.frame)
+        session_row.pack(fill='x', padx=10, pady=2)
+        tk.Label(session_row, text='Tally Session', width=18, anchor='w').pack(side=tk.LEFT)
+        self.session_var = tk.StringVar()
+        self.session_combo = ttk.Combobox(session_row, textvariable=self.session_var, state='readonly')
+        self.session_combo.pack(side=tk.LEFT, fill='x', expand=True)
+        self.session_combo.bind('<<ComboboxSelected>>', self.on_session_select)
+        # Allocation details table
+        self.alloc_table = tk.Listbox(self.frame, width=80)
+        self.alloc_table.pack(padx=10, pady=10)
+        # Calculator interface
+        calc_row = tk.Frame(self.frame)
+        calc_row.pack(fill='x', padx=10, pady=2)
+        tk.Label(calc_row, text='Bag Weight', width=18, anchor='w').pack(side=tk.LEFT)
+        self.weight_var = tk.StringVar()
+        self.weight_entry = tk.Entry(calc_row, textvariable=self.weight_var, width=10)
+        self.weight_entry.pack(side=tk.LEFT)
+        tk.Label(calc_row, text='Quantity', width=10, anchor='w').pack(side=tk.LEFT)
+        self.qty_var = tk.StringVar(value='1')
+        tk.Entry(calc_row, textvariable=self.qty_var, width=5).pack(side=tk.LEFT)
+        tk.Button(calc_row, text='Add', command=self.add_bag).pack(side=tk.LEFT, padx=5)
+        # Number pad
+        pad_frame = tk.Frame(self.frame)
+        pad_frame.pack(padx=10, pady=2)
+        btns = [
+            ['7', '8', '9'],
+            ['4', '5', '6'],
+            ['1', '2', '3'],
+            ['0', '.', 'Del'],
+            ['C']
+        ]
+        for r, row in enumerate(btns):
+            for c, char in enumerate(row):
+                tk.Button(pad_frame, text=char, width=4, command=lambda ch=char: self.numpad_press(ch)).grid(row=r, column=c, padx=1, pady=1)
+        # History
+        tk.Label(self.frame, text='History').pack(padx=10, anchor='w')
+        self.history_list = tk.Listbox(self.frame, width=80)
+        self.history_list.pack(padx=10, pady=5)
+        # Internal state
+        self.current_plant_id = None
+        self.current_session_id = None
+        self.filtered_allocs = []
+
+    def numpad_press(self, char):
+        if char == 'C':
+            self.weight_var.set('')
+        elif char == 'Del':
+            self.weight_var.set(self.weight_var.get()[:-1])
+        else:
+            self.weight_var.set(self.weight_var.get() + char)
+
+    def on_plant_select(self, event=None):
+        val = self.plant_var.get()
+        if not val:
+            return
+        plant_id = int(val.split(':')[0])
+        self.current_plant_id = plant_id
+        # Filter sessions for this plant
+        filtered_sessions = [s for s in self.sessions if s['plant'] == plant_id]
+        self.session_combo['values'] = [f"{s['id']}: {s['status']} ({s['date']})" for s in filtered_sessions]
+        self.session_var.set('')
+        self.alloc_table.delete(0, tk.END)
+        self.history_list.delete(0, tk.END)
+        self.current_session_id = None
+
+    def on_session_select(self, event=None):
+        val = self.session_var.get()
+        if not val:
+            return
+        session_id = int(val.split(':')[0])
+        self.current_session_id = session_id
+        self.update_alloc_table()
+        self.history_list.delete(0, tk.END)
+        self.history = []
+
+    def update_alloc_table(self):
+        self.allocations = fetch_list('allocations/')
+        self.weight_classes = fetch_list('weight-classifications/')
+        # Filter allocations for this session and plant
+        self.filtered_allocs = []
+        for alloc in self.allocations:
+            # Get weight class for this alloc
+            wc = next((w for w in self.weight_classes if w['id'] == alloc['weight_class']), None)
+            if not wc:
+                continue
+            if alloc['tally_session'] == self.current_session_id and wc['plant'] == self.current_plant_id:
+                self.filtered_allocs.append((alloc, wc))
+        self.alloc_table.delete(0, tk.END)
+        for alloc, wc in self.filtered_allocs:
+            self.alloc_table.insert(tk.END, f"{wc['classification']} ({wc['min_weight']}-{wc['max_weight']}kg) | Required: {alloc['required_bags']} | Allocated: {alloc['allocated_bags'] if alloc['allocated_bags'] is not None else 0}")
+
+    def add_bag(self):
+        if not self.current_plant_id or not self.current_session_id:
+            messagebox.showwarning('Selection Error', 'Please select a plant and session.')
+            return
+        try:
+            weight = float(self.weight_var.get())
+        except ValueError:
+            messagebox.showwarning('Input Error', 'Please enter a valid decimal weight.')
+            return
+        try:
+            qty = int(self.qty_var.get())
+        except ValueError:
+            messagebox.showwarning('Input Error', 'Please enter a valid integer quantity.')
+            return
+        # Find matching weight class for this plant
+        plant_wcs = [w for w in self.weight_classes if w['plant'] == self.current_plant_id]
+        match_wc = None
+        for wc in plant_wcs:
+            if wc['min_weight'] <= weight <= wc['max_weight']:
+                match_wc = wc
+                break
+        if not match_wc:
+            messagebox.showerror('No Match', 'No weight classification matches this weight for the selected plant.')
+            return
+        # Find allocation detail for this session, plant, and weight class
+        alloc = next((a for a, w in self.filtered_allocs if w['id'] == match_wc['id']), None)
+        if not alloc:
+            messagebox.showerror('No Allocation', 'No allocation detail found for this weight class in the selected session.')
+            return
+        # Update allocated_bags
+        new_allocated = (alloc['allocated_bags'] or 0) + qty
+        patch = {'allocated_bags': new_allocated}
+        try:
+            resp = requests.patch(f"{API_BASE}allocations/{alloc['id']}/", json=patch)
+            resp.raise_for_status()
+        except Exception as e:
+            messagebox.showerror('Error', f'Failed to update allocation: {e}')
+            return
+        self.update_alloc_table()
+        # Add to history
+        import datetime
+        now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.history.append((now, weight, qty, match_wc['classification']))
+        self.history_list.insert(tk.END, f"[{now}] Weight: {weight}kg | Qty: {qty} | Class: {match_wc['classification']}")
+        self.weight_var.set('')
+        self.qty_var.set('1')
+
 class TallySystemApp:
     def __init__(self, root):
         self.root = root
@@ -191,6 +363,9 @@ class TallySystemApp:
             fk_fields={'tally_session': ('tally-sessions/', 'id'), 'weight_class': ('weight-classifications/', 'classification')}
         )
         self.notebook.add(self.allocations_tab.frame, text='Allocation Details')
+        # Add Tally tab
+        self.tally_tab = TallyTab(self.notebook)
+        self.notebook.add(self.tally_tab.frame, text='Tally')
 
 if __name__ == '__main__':
     root = tk.Tk()
