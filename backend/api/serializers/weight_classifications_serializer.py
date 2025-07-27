@@ -5,7 +5,7 @@ class WeightClassificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = WeightClassification
         fields = '__all__'
-        read_only_fields = ['id', 'classification', 'min_weight', 'max_weight']
+        read_only_fields = ['id']
     
 
 
