@@ -66,7 +66,7 @@ class ModelTab:
     def load(self):
         self.data = fetch_list(self.model + '/')
         self.listbox.delete(0, tk.END)
-        # For verbose display in allocations tab
+        # Verbose display for allocations tab
         if self.model == 'allocations':
             # Fetch related data for verbose display
             sessions = fetch_list('tally-sessions/')
@@ -88,6 +88,21 @@ class ModelTab:
                     tk.END,
                     f"Session: {session['id'] if session else obj['tally_session']} | Customer: {customer} | Plant: {plant} | Status: {status} | Class: {wc_str} | Required: {obj['required_bags']} | Allocated: {obj['allocated_bags'] if obj['allocated_bags'] is not None else 0}"
                 )
+        # Verbose display for tally-sessions tab
+        elif self.model == 'tally-sessions':
+            customers = fetch_list('customers/')
+            plants = fetch_list('plants/')
+            customer_map = {c['id']: c['name'] for c in customers}
+            plant_map = {p['id']: p['name'] for p in plants}
+            for obj in self.data:
+                customer = customer_map.get(obj['customer'], obj['customer'])
+                plant = plant_map.get(obj['plant'], obj['plant'])
+                status = obj.get('status', 'Unknown')
+                date = obj.get('date', '')
+                self.listbox.insert(
+                    tk.END,
+                    f"Session: {obj['id']} | Customer: {customer} | Plant: {plant} | Status: {status} | Date: {date}"
+                )
         else:
             for obj in self.data:
                 display = f"{obj['id']}: " + ', '.join(str(obj.get(f, '')) for f in self.fields)
@@ -96,7 +111,19 @@ class ModelTab:
         for field in self.fk_fields:
             fk_endpoint, fk_label = self.fk_fields[field]
             entry, var = self.entries[field]
-            entry['values'] = [f"{item['id']}: {item[fk_label]}" for item in fetch_list(fk_endpoint)]
+            # Special verbose dropdown for tally_session in allocations tab
+            if self.model == 'allocations' and field == 'tally_session':
+                sessions = fetch_list('tally-sessions/')
+                customers = fetch_list('customers/')
+                plants = fetch_list('plants/')
+                customer_map = {c['id']: c['name'] for c in customers}
+                plant_map = {p['id']: p['name'] for p in plants}
+                entry['values'] = [
+                    f"{s['id']}: {customer_map.get(s['customer'], s['customer'])} | {plant_map.get(s['plant'], s['plant'])} | {s.get('status', '')} | {s.get('date', '')}"
+                    for s in sessions
+                ]
+            else:
+                entry['values'] = [f"{item['id']}: {item[fk_label]}" for item in fetch_list(fk_endpoint)]
         for field in self.choices:
             entry, var = self.entries[field]
             entry['values'] = self.choices[field]
@@ -308,6 +335,10 @@ class TallyTab:
         self.current_customer_id = customer_id
         # Filter plants that have sessions for this customer
         customer_sessions = [s for s in self.sessions if s['customer'] == customer_id]
+        # Check for unfinished inactive sessions
+        unfinished_inactive = [s for s in customer_sessions if s.get('status') == 'Unfinished (Inactive)']
+        if not unfinished_inactive:
+            messagebox.showwarning('No Unfinished (Inactive) Session', 'This customer has no Unfinished (Inactive) tally session.')
         plant_ids = sorted(set(s['plant'] for s in customer_sessions))
         filtered_plants = [p for p in self.plants if p['id'] in plant_ids]
         self.plant_combo['values'] = [f"{p['id']}: {p['name']}" for p in filtered_plants]
@@ -424,7 +455,7 @@ class TallySystemApp:
         self.tally_sessions_tab = ModelTab(
             self.notebook, 'tally-sessions', ['customer', 'plant', 'status'],
             fk_fields={'customer': ('customers/', 'name'), 'plant': ('plants/', 'name')},
-            choices={'status': ['Ongoing', 'Done']}
+            choices={'status': ['Unfinished (Active)', 'Unfinished (Inactive)', 'Finished']}
         )
         self.notebook.add(self.tally_sessions_tab.frame, text='Tally Sessions')
         # Weight Classifications
