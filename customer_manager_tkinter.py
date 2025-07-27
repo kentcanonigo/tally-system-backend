@@ -437,6 +437,26 @@ class TallyTab:
         self.weight_var.set('')
         self.qty_var.set('1')
 
+class DebugTab:
+    def __init__(self, parent):
+        self.frame = ttk.Frame(parent)
+        tk.Label(self.frame, text='Debug Tools', font=('Arial', 14, 'bold')).pack(pady=10)
+        tk.Button(self.frame, text='Reset Entire Database', command=self.reset_db, fg='red').pack(pady=10)
+
+    def reset_db(self):
+        if not messagebox.askyesno('Confirm Reset', 'Are you sure you want to delete ALL data? This cannot be undone.'):
+            return
+        # Delete in order: allocations, tally sessions, weight classifications, plants, customers
+        try:
+            for endpoint in ['allocations/', 'tally-sessions/', 'weight-classifications/', 'plants/', 'customers/']:
+                items = fetch_list(endpoint)
+                for item in items:
+                    resp = requests.delete(f"{API_BASE}{endpoint}{item['id']}/")
+                    resp.raise_for_status()
+            messagebox.showinfo('Reset Complete', 'All data has been deleted. You may need to refresh the app.')
+        except Exception as e:
+            messagebox.showerror('Error', f'Failed to reset database: {e}')
+
 class TallySystemApp:
     def __init__(self, root):
         self.root = root
@@ -474,6 +494,9 @@ class TallySystemApp:
         # Add Tally tab
         self.tally_tab = TallyTab(self.notebook)
         self.notebook.add(self.tally_tab.frame, text='Tally')
+        # Add Debug tab
+        self.debug_tab = DebugTab(self.notebook)
+        self.notebook.add(self.debug_tab.frame, text='Debug')
 
 if __name__ == '__main__':
     root = tk.Tk()
