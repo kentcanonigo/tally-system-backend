@@ -24,9 +24,16 @@ class ModelTab:
         self.data = []
         self.selected_id = None
         self.frame = ttk.Frame(parent)
-        self.listbox = tk.Listbox(self.frame, width=60)
-        self.listbox.pack(padx=10, pady=10)
+        # Add a frame for the listbox and scrollbar
+        list_frame = tk.Frame(self.frame)
+        list_frame.pack(padx=10, pady=10, fill='both', expand=True)
+        self.listbox = tk.Listbox(list_frame, width=60)
+        self.listbox.pack(side=tk.LEFT, fill='both', expand=True)
         self.listbox.bind('<<ListboxSelect>>', self.on_select)
+        # Add a vertical scrollbar
+        scrollbar = tk.Scrollbar(list_frame, orient='vertical', command=self.listbox.yview)
+        scrollbar.pack(side=tk.RIGHT, fill='y')
+        self.listbox.config(yscrollcommand=scrollbar.set)
         self.entries = {}
         for field in fields:
             row = tk.Frame(self.frame)
@@ -59,15 +66,37 @@ class ModelTab:
     def load(self):
         self.data = fetch_list(self.model + '/')
         self.listbox.delete(0, tk.END)
-        for obj in self.data:
-            display = f"{obj['id']}: " + ', '.join(str(obj.get(f, '')) for f in self.fields)
-            self.listbox.insert(tk.END, display)
+        # For verbose display in allocations tab
+        if self.model == 'allocations':
+            # Fetch related data for verbose display
+            sessions = fetch_list('tally-sessions/')
+            customers = fetch_list('customers/')
+            plants = fetch_list('plants/')
+            weight_classes = fetch_list('weight-classifications/')
+            customer_map = {c['id']: c['name'] for c in customers}
+            plant_map = {p['id']: p['name'] for p in plants}
+            wc_map = {w['id']: w for w in weight_classes}
+            session_map = {s['id']: s for s in sessions}
+            for obj in self.data:
+                session = session_map.get(obj['tally_session'])
+                wc = wc_map.get(obj['weight_class'])
+                customer = customer_map.get(session['customer']) if session else 'Unknown'
+                plant = plant_map.get(session['plant']) if session else 'Unknown'
+                status = session['status'] if session else 'Unknown'
+                wc_str = wc['classification'] if wc else str(obj['weight_class'])
+                self.listbox.insert(
+                    tk.END,
+                    f"Session: {session['id'] if session else obj['tally_session']} | Customer: {customer} | Plant: {plant} | Status: {status} | Class: {wc_str} | Required: {obj['required_bags']} | Allocated: {obj['allocated_bags'] if obj['allocated_bags'] is not None else 0}"
+                )
+        else:
+            for obj in self.data:
+                display = f"{obj['id']}: " + ', '.join(str(obj.get(f, '')) for f in self.fields)
+                self.listbox.insert(tk.END, display)
         self.selected_id = None
         for field in self.fk_fields:
             fk_endpoint, fk_label = self.fk_fields[field]
-            fk_list = fetch_list(fk_endpoint)
             entry, var = self.entries[field]
-            entry['values'] = [f"{item['id']}: {item[fk_label]}" for item in fk_list]
+            entry['values'] = [f"{item['id']}: {item[fk_label]}" for item in fetch_list(fk_endpoint)]
         for field in self.choices:
             entry, var = self.entries[field]
             entry['values'] = self.choices[field]
@@ -169,6 +198,22 @@ class ModelTab:
             return
         if not messagebox.askyesno('Confirm Delete', 'Are you sure you want to delete this item?'):
             return
+        # Special logic for tally-sessions: check for allocation details
+        if self.model == 'tally-sessions':
+            # Fetch all allocations
+            allocations = fetch_list('allocations/')
+            tied_allocs = [a for a in allocations if a['tally_session'] == self.selected_id]
+            if tied_allocs:
+                if messagebox.askyesno('Delete Related?', f'This tally session has {len(tied_allocs)} allocation details tied to it.\nDo you also want to delete those allocation details?'):
+                    # Delete all tied allocation details
+                    for alloc in tied_allocs:
+                        try:
+                            resp = requests.delete(f"{API_BASE}allocations/{alloc['id']}/")
+                            resp.raise_for_status()
+                        except Exception as e:
+                            messagebox.showerror('Error', f'Failed to delete allocation detail {alloc['id']}: {e}')
+                else:
+                    messagebox.showinfo('Orphaned Allocations', 'The allocation details tied to this session will become orphaned.\n\nSuggestions:\n- Edit the allocation details to assign them to another session.\n- Add a note or status to indicate they are orphaned.\n- Delete them manually later.')
         try:
             resp = requests.delete(f"{self.get_api_url()}{self.selected_id}/")
             resp.raise_for_status()
@@ -365,8 +410,10 @@ class TallySystemApp:
     def __init__(self, root):
         self.root = root
         self.root.title('Tally System Manager')
+        self.root.rowconfigure(0, weight=1)
+        self.root.columnconfigure(0, weight=1)
         self.notebook = ttk.Notebook(root)
-        self.notebook.pack(fill='both', expand=True)
+        self.notebook.grid(row=0, column=0, sticky='nsew')
         # Customers
         self.customers_tab = ModelTab(self.notebook, 'customers', ['name'])
         self.notebook.add(self.customers_tab.frame, text='Customers')
@@ -376,7 +423,8 @@ class TallySystemApp:
         # Tally Sessions
         self.tally_sessions_tab = ModelTab(
             self.notebook, 'tally-sessions', ['customer', 'plant', 'status'],
-            fk_fields={'customer': ('customers/', 'name'), 'plant': ('plants/', 'name')}
+            fk_fields={'customer': ('customers/', 'name'), 'plant': ('plants/', 'name')},
+            choices={'status': ['Ongoing', 'Done']}
         )
         self.notebook.add(self.tally_sessions_tab.frame, text='Tally Sessions')
         # Weight Classifications
